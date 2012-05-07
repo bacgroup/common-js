@@ -277,6 +277,9 @@ Guacamole.Keyboard = function(element) {
         // Only intercept if handler set
         if (!guac_keyboard.onkeydown) return true;
 
+		// If we wait till returning false, default may already have occured.
+		e.preventDefault();
+
         var keynum;
         if (window.event) keynum = window.event.keyCode;
         else if (e.which) keynum = e.which;
