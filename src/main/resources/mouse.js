@@ -72,6 +72,16 @@ Guacamole.Mouse = function(element) {
     this.clickTimingThreshold = 250;
 
     /**
+     * The time a touch event is transformed to a right click
+     */
+    this.rightClickTime = 500;
+
+    /**
+     * The time between two clicks to generate a double click
+     */
+    this.doubleClickTime = 300;
+
+    /**
      * The maximum number of pixels to allow a touch to move for the gesture to
      * be considered a click.
      */
@@ -184,8 +194,11 @@ Guacamole.Mouse = function(element) {
     var touch_count = 0;
     var last_touch_x = 0;
     var last_touch_y = 0;
+    var first_touch_x = 0;
+    var first_touch_y = 0;
     var last_touch_time = 0;
     var pixels_moved = 0;
+    var doubleclick = false;
 
     var touch_move = false;
     var firstTapTime = 0;
@@ -193,6 +206,8 @@ Guacamole.Mouse = function(element) {
 
     var gesture_in_progress = false;
     var gesture_release_timeout = null;
+
+    var rightclick_timeout = null;
     
     simulate_click = function() {
       guac_mouse.currentState.left = true;
@@ -220,6 +235,11 @@ Guacamole.Mouse = function(element) {
         
         cancelEvent(e);
             
+        if (rightclick_timeout) {
+            window.clearTimeout(rightclick_timeout);
+            rightclick_timeout = null;
+        }
+
         var touchTimer = (new Date().getTime()) - touchInitialTime;
 
         touchInitialTime = 0;
@@ -231,16 +251,17 @@ Guacamole.Mouse = function(element) {
         } else if (touch_count == 1) {
             guac_mouse.currentState.x = last_touch_x;
             guac_mouse.currentState.y = last_touch_y;
-            if (touchTimer > 500 && pixels_moved < guac_mouse.clickMoveThreshold) {
-                simulate_click_right();
-            } else if (!touch_move) {
-                firstTapTime = new Date().getTime();
+            if ((touchTimer < guac_mouse.rightClickTime || pixels_moved > guac_mouse.clickMoveThreshold) && !touch_move) {
+                if (doubleclick) {
+                    guac_mouse.currentState.x = first_touch_x;
+                    guac_mouse.currentState.y = first_touch_y;
+                }
                 simulate_click();
             }
-        } else if (touchTimer < 200 && touch_count == 3 && pixels_moved < guac_mouse.clickMoveThreshold && !touch_move) {
+        } else if (touchTimer < guac_mouse.clickTimingThreshold && touch_count == 3 && pixels_moved < guac_mouse.clickMoveThreshold && !touch_move) {
             if (guac_mouse.onthreefingers)
                 guac_mouse.onthreefingers();
-        } else if (touchTimer < 200 && touch_count == 2 && pixels_moved < guac_mouse.clickMoveThreshold && !touch_move) {
+        } else if (touchTimer < guac_mouse.clickTimingThreshold && touch_count == 2 && pixels_moved < guac_mouse.clickMoveThreshold && !touch_move) {
             if (guac_mouse.ontwofingers)
                 guac_mouse.ontwofingers();
         }
@@ -250,8 +271,7 @@ Guacamole.Mouse = function(element) {
             window.clearTimeout(gesture_release_timeout);
         gesture_release_timeout = window.setTimeout(function () {
             gesture_in_progress = false;
-        }, 1000);
-
+        }, guac_mouse.rightClickTime*2);
     }, false);
 
     element.addEventListener("touchstart", function(e) {
@@ -265,13 +285,30 @@ Guacamole.Mouse = function(element) {
         last_touch_x = touch.clientX;
         last_touch_y = touch.clientY;
         touchInitialTime = new Date().getTime();
+        if (touchInitialTime - last_touch_time > guac_mouse.doubleClickTime || pixels_moved > guac_mouse.clickMoveThreshold) {
+            first_touch_x = touch.clientX;
+            first_touch_y = touch.clientY;
+            doubleclick = false;
+        } else {
+          doubleclick = true;
+        }
+        last_touch_time = touchInitialTime;
         pixels_moved = 0;
         gesture_in_progress = true;
         if (gesture_release_timeout) {
             window.clearTimeout(gesture_release_timeout);
             gesture_release_timeout = null;
         }
-
+        if (rightclick_timeout) {
+            window.clearTimeout(rightclick_timeout);
+        }
+        rightclick_timeout = setTimeout(function () {
+            if (pixels_moved < guac_mouse.clickMoveThreshold) {
+                simulate_click_right();
+            }
+            rightclick_timeout = null;
+        }, guac_mouse.rightClickTime);
+        
     }, false);
 
     element.addEventListener("touchmove", function(e) {

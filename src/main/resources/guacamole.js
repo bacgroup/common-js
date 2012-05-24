@@ -21,6 +21,7 @@
  *
  * Contributor(s):
  * Matt Hortman
+ *  David PHAM-VAN <d.pham-van@ulteo.com> Ulteo SAS - http://www.ulteo.com
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -217,7 +218,7 @@ Guacamole.Client = function(tunnel) {
         if (!isConnected())
             return;
 
-        tunnel.sendMessage("clipboard", data);
+        tunnel.sendMessage("clipboard", base64_encode(utf8_encode(data)));
     };
 
     // Handlers
@@ -334,7 +335,7 @@ Guacamole.Client = function(tunnel) {
         },
 
         "clipboard": function(parameters) {
-            if (guac_client.onclipboard) guac_client.onclipboard(parameters[0]);
+            if (guac_client.onclipboard) guac_client.onclipboard(utf8_decode(base64_decode(parameters[0])));
         },
 
         "close": function(parameters) {
