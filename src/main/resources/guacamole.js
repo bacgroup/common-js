@@ -593,7 +593,6 @@ Guacamole.Client = function(tunnel) {
 
 		"printjob": function(parameters) {
 			var pdf_url = '/guacamole'+parameters[0];
-			console.log("received printjob at url ", pdf_url);
 			var w = window.open(pdf_url, '_blank');
 			w.print();
 		},
