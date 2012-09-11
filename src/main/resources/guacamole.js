@@ -118,19 +118,8 @@ Guacamole.Client = function(tunnel) {
     default_layer_container_element.style.top  = "0px";
     default_layer_container_element.style.overflow = "hidden";
 
-    // Create cursor layer
-    var cursor = new Guacamole.Client.LayerContainer(0, 0);
-    cursor.getLayer().setChannelMask(Guacamole.Layer.SRC);
-
-    // Position cursor layer
-    var cursor_element = cursor.getElement();
-    cursor_element.style.position = "absolute";
-    cursor_element.style.left = "0px";
-    cursor_element.style.top  = "0px";
-
-    // Add default layer and cursor to display
+    // Add default layer to display
     display.appendChild(default_layer_container.getElement());
-    display.appendChild(cursor.getElement());
 
     // Add display to bounds
     bounds.appendChild(display);
@@ -159,23 +148,6 @@ Guacamole.Client = function(tunnel) {
             || currentState == STATE_WAITING;
     }
 
-    var cursorHotspotX = 0;
-    var cursorHotspotY = 0;
-
-    var cursorX = 0;
-    var cursorY = 0;
-
-    function moveCursor(x, y) {
-
-        // Move cursor layer
-        cursor.translate(x - cursorHotspotX, y - cursorHotspotY);
-
-        // Update stored position
-        cursorX = x;
-        cursorY = y;
-
-    }
-
     guac_client.getDisplay = function() {
         return bounds;
     };
@@ -193,12 +165,6 @@ Guacamole.Client = function(tunnel) {
         // Do not send requests if not connected
         if (!isConnected())
             return;
-
-        // Update client-side cursor
-        moveCursor(
-            Math.floor(mouseState.x),
-            Math.floor(mouseState.y)
-        );
 
         // Build mask
         var buttonMask = 0;
@@ -392,19 +358,20 @@ Guacamole.Client = function(tunnel) {
 
         "cursor": function(parameters) {
 
-            cursorHotspotX = parseInt(parameters[0]);
-            cursorHotspotY = parseInt(parameters[1]);
+            var cursorHotspotX = parseInt(parameters[0]);
+            var cursorHotspotY = parseInt(parameters[1]);
             var srcL = getLayer(parseInt(parameters[2]));
             var srcX = parseInt(parameters[3]);
             var srcY = parseInt(parameters[4]);
             var srcWidth = parseInt(parameters[5]);
             var srcHeight = parseInt(parameters[6]);
 
-            // Reset cursor size
-            cursor.resize(srcWidth, srcHeight);
+            // Create cursor layer
+            var cursor = new Guacamole.Layer(srcWidth, srcHeight);
+            cursor.setChannelMask(Guacamole.Layer.SRC);
 
             // Draw cursor to cursor layer
-            cursor.getLayer().copy(
+            cursor.copy(
                 srcL,
                 srcX,
                 srcY,
@@ -414,8 +381,11 @@ Guacamole.Client = function(tunnel) {
                 0 
             );
 
-            // Update cursor position (hotspot may have changed)
-            moveCursor(cursorX, cursorY);
+            // Update css cursor
+            cursor.sync(function () {
+                var img = cursor.getCanvas().toDataURL("image/png");
+                default_layer_container_element.style.cursor = 'url("'+img+'") '+cursorHotspotX+' '+cursorHotspotY+', auto';
+            });
 
         },
 
